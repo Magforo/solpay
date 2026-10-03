@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 app = FastAPI()
 
-# Базовые заголовки за спецификацией Solana Actions
+# Базові заголовки за специфікацією Solana Actions
 ACTIONS_CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET,POST,PUT,OPTIONS",
@@ -55,21 +55,21 @@ async def get_actions_json():
         ]
     })
 
-# 1. Обновленный GET: принимает кошелек создателя (creator) из URL
+# GET: приймає гаманець творця (creator) з URL
 @app.get("/api/actions/donate")
-async def get_action_info(creator: str = "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"): # Дефолтный кошелек, если параметр не передан
+async def get_action_info(creator: str = "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"): # Стандартний гаманець, якщо параметр не передано
     payload = {
         "type": "action",
         "icon": "https://solana.com/src/img/branding/solanaLogoMark.png",
-        "title": "Збір на MVP Superteam",
-        # Показываем сокращенный кошелек автора в описании карточки
+        "title": "Збір на перемогу в чемпіонаті",
+        # Показуємо скорочений гаманець автора в описі картки
         "description": f"Підтримай розробку! Кошти будуть надіслані автору: {creator[:4]}...{creator[-4:]}",
         "label": "Підтримати",
         "links": {
             "actions": [
                 {
                     "label": "0.01 SOL",
-                    # Обязательно пробрасываем creator дальше в POST запрос
+                    # Обов'язково прокидаємо creator далі в POST-запит
                     "href": f"/api/actions/donate?amount=0.01&creator={creator}"
                 },
                 {
@@ -90,7 +90,7 @@ class ActionPayload(BaseModel):
     account: str
 
 
-# 2. Боевой POST: генерирует реальную транзакцию в сети Solana
+# POST: генерує реальну транзакцію в мережі Solana
 @app.post("/api/actions/donate")
 async def post_action_data(payload: ActionPayload, amount: float = 0.01, creator: str = "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"):
     donor_wallet = payload.account
@@ -101,14 +101,14 @@ async def post_action_data(payload: ActionPayload, amount: float = 0.01, creator
     print(f"    Сума: {amount} SOL\n")
 
     try:
-        # 1. Переводим адреса из текста в криптографические объекты Pubkey
+        # 1. Переводимо адреси з тексту в криптографічні об'єкти Pubkey
         donor_pubkey = Pubkey.from_string(donor_wallet)
         creator_pubkey = Pubkey.from_string(creator)
         
-        # 2. Конвертируем SOL в минимальные единицы (лампорты). 1 SOL = 1 000 000 000 лампортов
+        # 2. Конвертуємо SOL у мінімальні одиниці (лампорти). 1 SOL = 1 000 000 000 лампортів
         lamports = int(amount * 1_000_000_000)
         
-        # 3. Создаем системную инструкцию перевода
+        # 3. Створюємо системну інструкцію переказу
         ix = transfer(
             TransferParams(
                 from_pubkey=donor_pubkey,
@@ -117,13 +117,13 @@ async def post_action_data(payload: ActionPayload, amount: float = 0.01, creator
             )
         )
         
-        # 4. Подключаемся к Mainnet для получения актуального blockhash 
-        # (без него транзакция считается устаревшей и сеть ее отклонит)
+        # Підключаємося до Mainnet для отримання актуального blockhash 
+        # (без нього транзакція вважається застарілою і мережа її відхилить)
         async with AsyncClient("https://api.mainnet-beta.solana.com") as client:
             blockhash_resp = await client.get_latest_blockhash()
             recent_blockhash = blockhash_resp.value.blockhash
             
-        # 5. Собираем современную версию транзакции (VersionedTransaction)
+        # 5. Збираємо сучасну версію транзакції (VersionedTransaction)
         msg = MessageV0.try_compile(
             payer=donor_pubkey,
             instructions=[ix],
@@ -131,13 +131,13 @@ async def post_action_data(payload: ActionPayload, amount: float = 0.01, creator
             recent_blockhash=recent_blockhash,
         )
         
-        # Создаем массив из одной пустой подписи (заглушка для кошелька донора)
+        # Створюємо масив з одного порожнього підпису (заглушка для гаманця донора)
         signatures = [Signature.default()]
         
-        # Используем метод populate для создания неподписанной транзакции
+        # Використовуємо метод populate для створення непідписаної транзакції
         tx = VersionedTransaction.populate(msg, signatures)
         
-        # 6. Сериализуем в байты и кодируем в строку Base64
+        # 6. Серіалізуємо в байти та кодуємо в рядок Base64
         serialized_tx = base64.b64encode(bytes(tx)).decode('utf-8')
         
         return JSONResponse(content={
@@ -146,5 +146,5 @@ async def post_action_data(payload: ActionPayload, amount: float = 0.01, creator
         })
         
     except Exception as e:
-        print(f"[!] Ошибка создания транзакции: {e}")
+        print(f"[!] Помилка створення транзакції: {e}")
         return JSONResponse(status_code=400, content={"message": "Помилка формування транзакції"})
